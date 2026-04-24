@@ -1,0 +1,105 @@
+@using AstroTool.Core.Models
+
+<div class="body-popup">
+    <div class="popup-header">
+        <span class="popup-title" style="color:@Body.Color">@Body.Name</span>
+        <button class="popup-close" @onclick="OnClose">✕</button>
+    </div>
+
+    <div class="popup-grid">
+        <div class="popup-stat">
+            <div class="popup-stat-label">Altitude</div>
+            <div class="popup-stat-value">@Body.Position.Altitude.ToString("F2")°</div>
+        </div>
+        <div class="popup-stat">
+            <div class="popup-stat-label">Azimuth</div>
+            <div class="popup-stat-value">@Body.Position.Azimuth.ToString("F2")°</div>
+        </div>
+        <div class="popup-stat">
+            <div class="popup-stat-label">Magnitude</div>
+            <div class="popup-stat-value">@Body.Position.Magnitude.ToString("F2")</div>
+        </div>
+        <div class="popup-stat">
+            <div class="popup-stat-label">RA / Dec</div>
+            <div class="popup-stat-value" style="font-size:11px">
+                @FormatRA(Body.Position.RightAscension) / @Body.Position.Declination.ToString("+#.##;-#.##")°
+            </div>
+        </div>
+        @if (Body.Position.Distance > 0)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Distance</div>
+                <div class="popup-stat-value">@FormatDistance()</div>
+            </div>
+        }
+        @if (Body.Position.IlluminatedFraction > 0 && Body.BodyType != CelestialBodyType.Star)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Illumination</div>
+                <div class="popup-stat-value">@((Body.Position.IlluminatedFraction * 100).ToString("F0"))%</div>
+            </div>
+        }
+        @if (Body is Moon moon)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Phase</div>
+                <div class="popup-stat-value">@moon.PhaseName</div>
+            </div>
+        }
+        @if (RiseTime.HasValue)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Rise</div>
+                <div class="popup-stat-value">@RiseTime.Value.ToLocalTime().ToString("HH:mm")</div>
+            </div>
+        }
+        @if (SetTime.HasValue)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Set</div>
+                <div class="popup-stat-value">@SetTime.Value.ToLocalTime().ToString("HH:mm")</div>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(Body.SpectralType) && Body.BodyType == CelestialBodyType.Star)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Spectral</div>
+                <div class="popup-stat-value">@Body.SpectralType</div>
+            </div>
+        }
+        @if (Body.DistanceLy > 0 && Body.BodyType == CelestialBodyType.Star)
+        {
+            <div class="popup-stat">
+                <div class="popup-stat-label">Distance</div>
+                <div class="popup-stat-value">@Body.DistanceLy.ToString("F1") ly</div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public required CelestialBody Body { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public DateTime? RiseTime { get; set; }
+    [Parameter] public DateTime? TransitTime { get; set; }
+    [Parameter] public DateTime? SetTime { get; set; }
+
+    private string FormatRA(double raDeg)
+    {
+        double raHours = raDeg / 15.0;
+        int h = (int)raHours;
+        double rem = (raHours - h) * 60;
+        int m = (int)rem;
+        int s = (int)((rem - m) * 60);
+        return $"{h:D2}h{m:D2}m{s:D2}s";
+    }
+
+    private string FormatDistance()
+    {
+        if (Body.BodyType == CelestialBodyType.Moon)
+            return $"{Body.Position.Distance:N0} km";
+        if (Body.BodyType == CelestialBodyType.Star)
+            return $"{Body.DistanceLy:F1} ly";
+        return $"{Body.Position.Distance:F4} AU";
+    }
+}

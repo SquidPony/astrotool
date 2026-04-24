@@ -1,0 +1,59 @@
+@page "/alerts"
+@using AstroTool.Core.Models
+@using AstroTool.Core.Services
+@inject AstronomyService Astronomy
+
+<div class="page-header">
+    <span class="page-title">🔔 Upcoming Events</span>
+    <select class="btn-astro" @bind="_dayCount" @bind:after="Refresh">
+        <option value="1">Today</option>
+        <option value="3">3 days</option>
+        <option value="7">7 days</option>
+        <option value="14">14 days</option>
+    </select>
+</div>
+
+<div class="event-list">
+    @foreach (var evt in _events)
+    {
+        <div class="event-item">
+            <span class="event-icon">@evt.Icon</span>
+            <div class="event-info">
+                <div class="event-name">@evt.Description</div>
+                <div class="event-time">@evt.Time.ToLocalTime().ToString("ddd dd MMM HH:mm")</div>
+                @if (!string.IsNullOrEmpty(evt.BodyName) && evt.BodyName != "Sun" && evt.BodyName != "Moon")
+                {
+                    <div class="event-time" style="color:#6a9aba">@evt.BodyName</div>
+                }
+            </div>
+            <div>
+                @{
+                    bool upcoming = evt.Time > DateTime.UtcNow && evt.Time < DateTime.UtcNow.AddHours(2);
+                }
+                @if (upcoming)
+                {
+                    <span class="event-badge">Soon</span>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!_events.Any())
+    {
+        <div style="padding:24px;text-align:center;color:#4a6a8a">
+            No events found for this period.
+        </div>
+    }
+</div>
+
+@code {
+    private List<AstronomicalEvent> _events = new();
+    private int _dayCount = 7;
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        _events = Astronomy.GetUpcomingEvents(_dayCount);
+    }
+}

@@ -1,0 +1,316 @@
+/* AstroTool - Dark Astronomy Theme */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #000510;
+    color: #c8d8e8;
+    font-family: 'OpenSansRegular', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.astro-app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.astro-main {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #000510;
+}
+
+/* Bottom Navigation */
+.astro-nav {
+    display: flex;
+    background: #070d1a;
+    border-top: 1px solid #1a2a3a;
+    padding: 4px 0 env(safe-area-inset-bottom, 4px);
+    z-index: 100;
+}
+
+.nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 2px 4px;
+    text-decoration: none;
+    color: #4a6a8a;
+    transition: color 0.2s;
+    font-size: 11px;
+}
+
+.nav-tab:hover { color: #8ab4d4; }
+.nav-tab.active { color: #4fa3e0; }
+.nav-tab ::deep.active { color: #4fa3e0; }
+
+.nav-icon { font-size: 20px; line-height: 1; }
+.nav-label { margin-top: 2px; }
+
+/* Page Headers */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 8px;
+    background: #070d1a;
+    border-bottom: 1px solid #1a2a3a;
+}
+
+.page-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #c8d8e8;
+}
+
+/* Canvas containers */
+.sky-canvas-container {
+    width: 100%;
+    aspect-ratio: 1;
+    max-height: calc(100vh - 200px);
+    position: relative;
+    overflow: hidden;
+}
+
+.sky-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+}
+
+/* Time Controls */
+.time-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #050c18;
+    border-bottom: 1px solid #1a2a3a;
+    overflow-x: auto;
+}
+
+.time-display {
+    font-family: monospace;
+    font-size: 13px;
+    color: #4fa3e0;
+    white-space: nowrap;
+}
+
+.btn-astro {
+    background: #0a1628;
+    border: 1px solid #2a4a6a;
+    color: #8ab4d4;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-astro:hover { background: #112038; border-color: #4fa3e0; }
+.btn-astro.active { background: #0d2040; border-color: #4fa3e0; color: #4fa3e0; }
+
+/* Filter bar */
+.filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    overflow-x: auto;
+}
+
+.filter-chip {
+    background: #0a1628;
+    border: 1px solid #1a3a5a;
+    border-radius: 16px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #6a9aba;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.filter-chip.active {
+    background: #0d2040;
+    border-color: #4fa3e0;
+    color: #4fa3e0;
+}
+
+/* Body details popup */
+.body-popup {
+    position: fixed;
+    bottom: 60px;
+    left: 16px;
+    right: 16px;
+    background: #070d1a;
+    border: 1px solid #2a4a6a;
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 200;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.6);
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.popup-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #c8d8e8;
+}
+
+.popup-close {
+    background: none;
+    border: none;
+    color: #6a9aba;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.popup-stat {
+    background: #05091a;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.popup-stat-label { font-size: 10px; color: #4a6a8a; text-transform: uppercase; }
+.popup-stat-value { font-size: 14px; color: #c8d8e8; font-family: monospace; margin-top: 2px; }
+
+/* Events list */
+.event-list { padding: 8px 0; }
+
+.event-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #0a1628;
+}
+
+.event-icon { font-size: 22px; width: 32px; text-align: center; }
+
+.event-info { flex: 1; }
+.event-name { font-size: 14px; color: #c8d8e8; }
+.event-time { font-size: 12px; color: #4a6a8a; font-family: monospace; margin-top: 2px; }
+
+.event-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #0d2040;
+    color: #4fa3e0;
+    border: 1px solid #2a4a6a;
+}
+
+/* Settings */
+.settings-section {
+    padding: 16px;
+    border-bottom: 1px solid #0a1628;
+}
+
+.settings-label {
+    font-size: 11px;
+    color: #4a6a8a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    color: #c8d8e8;
+    font-size: 14px;
+}
+
+.astro-input {
+    background: #0a1628;
+    border: 1px solid #2a4a6a;
+    border-radius: 6px;
+    color: #c8d8e8;
+    padding: 6px 10px;
+    font-size: 13px;
+    width: 120px;
+}
+
+.astro-input:focus {
+    outline: none;
+    border-color: #4fa3e0;
+}
+
+/* Window mode overlay */
+.window-canvas-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 140px);
+    background: #000;
+    overflow: hidden;
+}
+
+.window-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.sensor-info {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,5,16,0.7);
+    border: 1px solid #2a4a6a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #4fa3e0;
+}
+
+/* Status bar area */
+.status-bar-safe-area { height: env(safe-area-inset-top, 0); background: #000510; }
+
+/* Error UI */
+#blazor-error-ui {
+    background: #1a0505;
+    border-top: 2px solid #aa2222;
+    color: #ffaaaa;
+    display: none;
+    font-size: 14px;
+    padding: 10px 16px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss { cursor: pointer; float: right; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #050810; }
+::-webkit-scrollbar-thumb { background: #1a3a5a; border-radius: 2px; }

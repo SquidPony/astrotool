@@ -1,0 +1,118 @@
+@page "/settings"
+@using AstroTool.Core.Models
+@using AstroTool.Core.Services
+@inject AstronomyService Astronomy
+@inject AstroTool.Services.LocationService LocationSvc
+
+<div class="page-header">
+    <span class="page-title">⚙️ Settings</span>
+</div>
+
+<div class="settings-section">
+    <div class="settings-label">Observer Location</div>
+
+    <div class="settings-row">
+        <span>Latitude</span>
+        <input class="astro-input" type="number" step="0.001" @bind="_lat" @bind:event="oninput" />
+    </div>
+    <div class="settings-row">
+        <span>Longitude</span>
+        <input class="astro-input" type="number" step="0.001" @bind="_lon" @bind:event="oninput" />
+    </div>
+    <div class="settings-row">
+        <span>Altitude (m)</span>
+        <input class="astro-input" type="number" step="1" @bind="_alt" @bind:event="oninput" />
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-astro" @onclick="ApplyLocation">Apply</button>
+        <button class="btn-astro" @onclick="GetGPSLocation" disabled="@_loadingGPS">
+            @(_loadingGPS ? "Getting GPS…" : "📍 Use GPS")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_locationMessage))
+    {
+        <div style="margin-top:8px;font-size:12px;color:@(_locationError ? "#aa4444" : "#44aa66")">
+            @_locationMessage
+        </div>
+    }
+</div>
+
+<div class="settings-section">
+    <div class="settings-label">Current Location</div>
+    <div class="settings-row">
+        <span>Name</span>
+        <span style="font-family:monospace;font-size:13px">@Astronomy.Location.Name</span>
+    </div>
+    <div class="settings-row">
+        <span>Lat / Lon</span>
+        <span style="font-family:monospace;font-size:13px">
+            @Astronomy.Location.Latitude.ToString("F4")° / @Astronomy.Location.Longitude.ToString("F4")°
+        </span>
+    </div>
+</div>
+
+<div class="settings-section">
+    <div class="settings-label">Display</div>
+    <div class="settings-row">
+        <span>Limiting Magnitude</span>
+        <input class="astro-input" type="number" step="0.5" min="1" max="8" @bind="_limitMag" />
+    </div>
+</div>
+
+<div class="settings-section">
+    <div class="settings-label">About</div>
+    <div class="settings-row">
+        <span>AstroTool</span>
+        <span style="font-size:13px;color:#4a6a8a">v1.0</span>
+    </div>
+    <div style="font-size:12px;color:#4a6a8a;margin-top:6px;line-height:1.5">
+        Astronomical calculations based on Jean Meeus,
+        "Astronomical Algorithms" 2nd Ed. (Willmann-Bell, 1998).
+    </div>
+</div>
+
+@code {
+    private double _lat = 40.7128;
+    private double _lon = -74.0060;
+    private double _alt = 10;
+    private double _limitMag = 6.5;
+    private bool _loadingGPS = false;
+    private string? _locationMessage;
+    private bool _locationError = false;
+
+    protected override void OnInitialized()
+    {
+        var loc = Astronomy.Location;
+        _lat = loc.Latitude;
+        _lon = loc.Longitude;
+        _alt = loc.AltitudeMeters;
+    }
+
+    private void ApplyLocation()
+    {
+        LocationSvc.SetLocation(_lat, _lon, _alt, "Custom");
+        Astronomy.Location = new ObserverLocation { Latitude = _lat, Longitude = _lon, AltitudeMeters = _alt, Name = "Custom" };
+        _locationMessage = "Location updated.";
+        _locationError = false;
+    }
+
+    private async Task GetGPSLocation()
+    {
+        _loadingGPS = true;
+        _locationMessage = null;
+        StateHasChanged();
+
+        var loc = await LocationSvc.GetLocationAsync(forceRefresh: true);
+        _lat = loc.Latitude;
+        _lon = loc.Longitude;
+        _alt = loc.AltitudeMeters;
+        Astronomy.Location = loc;
+
+        _locationError = LocationSvc.ErrorMessage != null;
+        _locationMessage = LocationSvc.ErrorMessage ?? "GPS location acquired.";
+
+        _loadingGPS = false;
+    }
+}

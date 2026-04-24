@@ -1,0 +1,140 @@
+@page "/"
+@using AstroTool.Core.Models
+@using AstroTool.Core.Services
+@inject AstronomyService Astronomy
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="page-header">
+    <span class="page-title">🌌 Sky View</span>
+    <span class="time-display">@_displayTime</span>
+</div>
+
+<TimeControls @ref="_timeControls" OnTimeChanged="OnTimeChanged" />
+
+<div class="filter-bar">
+    <button class="filter-chip @(_showSun ? "active" : "")" @onclick="() => ToggleFilter(ref _showSun)">☀️ Sun</button>
+    <button class="filter-chip @(_showMoon ? "active" : "")" @onclick="() => ToggleFilter(ref _showMoon)">🌙 Moon</button>
+    <button class="filter-chip @(_showPlanets ? "active" : "")" @onclick="() => ToggleFilter(ref _showPlanets)">🪐 Planets</button>
+    <button class="filter-chip @(_showStars ? "active" : "")" @onclick="() => ToggleFilter(ref _showStars)">⭐ Stars</button>
+    <button class="filter-chip @(_showGrid ? "active" : "")" @onclick="() => ToggleFilter(ref _showGrid)">⊞ Grid</button>
+</div>
+
+<div class="sky-canvas-container">
+    <canvas id="skyCanvas" class="sky-canvas" @onclick="OnCanvasClick"></canvas>
+</div>
+
+@if (_selectedBody != null)
+{
+    <BodyDetailsPopup Body="_selectedBody" OnClose="() => _selectedBody = null"
+        RiseTime="_riseTime" TransitTime="_transitTime" SetTime="_setTime" />
+}
+
+@code {
+    private TimeControls? _timeControls;
+    private System.Threading.Timer? _renderTimer;
+    private string _displayTime = "";
+
+    private bool _showSun = true, _showMoon = true, _showPlanets = true,
+                 _showStars = true, _showGrid = true;
+
+    private CelestialBody? _selectedBody;
+    private DateTime? _riseTime, _transitTime, _setTime;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _renderTimer = new System.Threading.Timer(
+                async _ => await RenderSkyMap(), null,
+                TimeSpan.FromMilliseconds(100),
+                TimeSpan.FromSeconds(10));
+        }
+    }
+
+    private async Task OnTimeChanged()
+    {
+        _displayTime = Astronomy.CurrentTime.ToString("HH:mm:ss UTC");
+        await RenderSkyMap();
+    }
+
+    private async Task RenderSkyMap()
+    {
+        try
+        {
+            _displayTime = Astronomy.CurrentTime.ToString("HH:mm:ss UTC");
+            var bodies = Astronomy.GetVisibleBodies(
+                includeSun: _showSun,
+                includeMoon: _showMoon,
+                includePlanets: _showPlanets,
+                includeStars: _showStars,
+                minAlt: -5);
+
+            var bodyData = bodies.Select(b => new {
+                name = b.Name,
+                altitude = b.Position.Altitude,
+                azimuth = b.Position.Azimuth,
+                magnitude = b.Position.Magnitude,
+                color = b.Color,
+                bodyType = b.BodyType.ToString(),
+                illuminatedFraction = b.Position.IlluminatedFraction,
+                phaseAngle = b.Position.PhaseAngle
+            });
+
+            await JS.InvokeVoidAsync("AstroTool.renderSkyMap", "skyCanvas", bodyData,
+                new { showGrid = _showGrid, showLabels = true });
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { /* ignore render errors during disposal */ }
+    }
+
+    private async Task OnCanvasClick(MouseEventArgs e)
+    {
+        var bodies = Astronomy.GetVisibleBodies(
+            _showSun, _showMoon, _showPlanets, _showStars, minAlt: -5);
+
+        var bodyData = bodies.Select(b => new {
+            name = b.Name,
+            altitude = b.Position.Altitude,
+            azimuth = b.Position.Azimuth,
+            magnitude = b.Position.Magnitude,
+            color = b.Color,
+            bodyType = b.BodyType.ToString(),
+            illuminatedFraction = b.Position.IlluminatedFraction,
+            phaseAngle = b.Position.PhaseAngle
+        });
+
+        var name = await JS.InvokeAsync<string?>("AstroTool.findBodyAtClick",
+            "skyCanvas", e.OffsetX, e.OffsetY, bodyData, "sky", null);
+
+        if (name != null)
+        {
+            _selectedBody = bodies.FirstOrDefault(b => b.Name == name);
+            if (_selectedBody != null)
+            {
+                double h0 = _selectedBody.BodyType == CelestialBodyType.Sun
+                    ? EventCalculator.H0_SUN
+                    : _selectedBody.BodyType == CelestialBodyType.Moon
+                        ? EventCalculator.H0_MOON
+                        : EventCalculator.H0_STARS;
+
+                var (r, t, s) = Astronomy.GetRiseTransitSet(
+                    _selectedBody.Position.RightAscension,
+                    _selectedBody.Position.Declination, h0);
+                _riseTime = r; _transitTime = t; _setTime = s;
+            }
+        }
+        else
+        {
+            _selectedBody = null;
+        }
+    }
+
+    private void ToggleFilter(ref bool flag) { flag = !flag; _ = RenderSkyMap(); }
+
+    public void Dispose()
+    {
+        _renderTimer?.Dispose();
+    }
+}

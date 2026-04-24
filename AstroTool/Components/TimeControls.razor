@@ -1,0 +1,76 @@
+@using AstroTool.Core.Services
+@inject AstronomyService Astronomy
+
+<div class="time-controls">
+    <button class="btn-astro @(Astronomy.UseRealTime ? "active" : "")" @onclick="UseNow">Now</button>
+
+    <button class="btn-astro" @onclick="() => Step(-1, 'h')">-1h</button>
+    <button class="btn-astro" @onclick="() => Step(-10, 'm')">-10m</button>
+    <button class="btn-astro" @onclick="() => Step(10, 'm')">+10m</button>
+    <button class="btn-astro" @onclick="() => Step(1, 'h')">+1h</button>
+    <button class="btn-astro" @onclick="() => Step(1, 'd')">+1d</button>
+
+    <span class="time-display" style="flex:1;text-align:center">
+        @Astronomy.CurrentTime.ToString("yyyy-MM-dd HH:mm")
+    </span>
+
+    <button class="btn-astro @(_animating ? "active" : "")" @onclick="ToggleAnimation">
+        @(_animating ? "⏸" : "▶")
+    </button>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnTimeChanged { get; set; }
+
+    private bool _animating = false;
+    private System.Threading.Timer? _animTimer;
+    private TimeSpan _animStep = TimeSpan.FromMinutes(10);
+
+    private async Task UseNow()
+    {
+        Astronomy.UseRealTime = true;
+        StopAnimation();
+        await OnTimeChanged.InvokeAsync();
+    }
+
+    private async Task Step(int amount, char unit)
+    {
+        TimeSpan delta = unit switch
+        {
+            'h' => TimeSpan.FromHours(amount),
+            'd' => TimeSpan.FromDays(amount),
+            _   => TimeSpan.FromMinutes(amount)
+        };
+        Astronomy.AdvanceTime(delta);
+        await OnTimeChanged.InvokeAsync();
+    }
+
+    private void ToggleAnimation()
+    {
+        if (_animating) StopAnimation();
+        else StartAnimation();
+    }
+
+    private void StartAnimation()
+    {
+        _animating = true;
+        _animTimer = new System.Threading.Timer(
+            async _ => {
+                Astronomy.AdvanceTime(_animStep);
+                await InvokeAsync(async () => {
+                    await OnTimeChanged.InvokeAsync();
+                    StateHasChanged();
+                });
+            },
+            null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
+    }
+
+    private void StopAnimation()
+    {
+        _animating = false;
+        _animTimer?.Dispose();
+        _animTimer = null;
+    }
+
+    public void Dispose() => _animTimer?.Dispose();
+}
