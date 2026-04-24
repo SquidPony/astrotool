@@ -116,7 +116,7 @@ jobs:
           -f net10.0-windows10.0.19041.0
           -c Release
           -r win-x64
-          --self-contained true
+          --self-contained false
           /p:EnableWindowsTargeting=true
 
       - name: Zip Windows publish output
@@ -136,7 +136,7 @@ jobs:
   # ─────────────────────────────────────────────────────────
   build-ios:
     name: Build iOS
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: test
     permissions:
       contents: read
@@ -175,7 +175,7 @@ jobs:
   # ─────────────────────────────────────────────────────────
   build-maccatalyst:
     name: Build macCatalyst
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: test
     permissions:
       contents: read
