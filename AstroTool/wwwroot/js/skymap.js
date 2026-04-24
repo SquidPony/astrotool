@@ -195,7 +195,7 @@ function drawMoon(ctx, x, y, r, illum, phaseAngle) {
     ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2);
     if (phaseAngle < 180) {
         // Waxing: right side lit
-        ctx.bezierCurveTo(x + r * lit * 2, y + r, x + r * lit * 2, y - r, x, -Math.PI / 2 + y);
+        ctx.bezierCurveTo(x + r * lit * 2, y + r, x + r * lit * 2, y - r, x, y - r);
     } else {
         ctx.bezierCurveTo(x - r * lit * 2, y + r, x - r * lit * 2, y - r, x, y - r);
     }
