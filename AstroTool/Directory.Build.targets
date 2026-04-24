@@ -1,0 +1,76 @@
+<Project>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('linux'))">
+    <UseXamlCompilerExecutable>false</UseXamlCompilerExecutable>
+  </PropertyGroup>
+
+  <!-- Fix MSIX file path casing for Linux (case-sensitive filesystem) -->
+  <Target Name="_FixMsixPathsForLinux"
+          BeforeTargets="ExtractMicrosoftWindowsAppSDKMsixFiles"
+          DependsOnTargets="GetExtractMicrosoftWindowsAppSDKMsixFilesInputs"
+          Condition="$([MSBuild]::IsOSPlatform('linux'))">
+    <ItemGroup>
+      <MicrosoftWindowsAppSDKMsix Remove="@(MicrosoftWindowsAppSDKMsix)" />
+      <MicrosoftWindowsAppSDKMsix Include="$(MicrosoftWindowsAppSDKPackageDir)tools/MSIX/win10-$(NativePlatform)/Microsoft.WindowsAppRuntime.*.msix" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Override CreateWinRTRegistration on Linux: replace the Windows-only mt.exe
+    manifest merge with an inline Python-based XML merge.
+  -->
+  <UsingTask TaskName="MergeXmlManifests"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll"
+             Condition="$([MSBuild]::IsOSPlatform('linux'))">
+    <ParameterGroup>
+      <Manifests ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputManifest ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Xml" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+        var base_doc = new XmlDocument();
+        base_doc.Load(Manifests[0].ItemSpec);
+        var ns = base_doc.DocumentElement.NamespaceURI;
+        for (int i = 1; i < Manifests.Length; i++) {
+            var merge_doc = new XmlDocument();
+            merge_doc.Load(Manifests[i].ItemSpec);
+            foreach (XmlNode child in merge_doc.DocumentElement.ChildNodes) {
+                var imported = base_doc.ImportNode(child, true);
+                base_doc.DocumentElement.AppendChild(imported);
+            }
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(OutputManifest));
+        base_doc.Save(OutputManifest);
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="CreateWinRTRegistration"
+          BeforeTargets="AssignTargetPaths;CoreCompile"
+          Inputs="$(UserApplicationManifest);$(WindowsAppSDKAppxManifest)"
+          Outputs="$(ApplicationManifest)"
+          Condition="'$(MSBuildProjectExtension)' != '.wapproj' and $([MSBuild]::IsOSPlatform('linux')) and $(TargetFramework.Contains('windows'))">
+    <CallTarget Targets="GetNewAppManifestValues;ExtractMicrosoftWindowsAppSDKMsixFiles" />
+    <MakeDir Directories="$(SelfContainedIntermediateOutputPath)Manifests\" />
+    <PropertyGroup>
+      <WindowsAppSDKAppManifest>$(SelfContainedIntermediateOutputPath)Manifests\WindowsAppSDK.manifest</WindowsAppSDKAppManifest>
+    </PropertyGroup>
+    <GenerateAppManifestFromAppx
+        RedirectDlls="false"
+        MsixContentDir="$(MicrosoftWindowsAppSDKMsixContent)"
+        InAppxManifest="$(WindowsAppSDKAppxManifest)"
+        OutAppManifest="$(WindowsAppSDKAppManifest)" />
+    <ItemGroup>
+      <MtMergeInputs Include="$(WindowsAppSDKAppManifest)" />
+      <MtMergeInputs Condition="'$(UserApplicationManifest)'!=''" Include="$(UserApplicationManifest)" />
+    </ItemGroup>
+    <MergeXmlManifests
+        Manifests="@(MtMergeInputs)"
+        OutputManifest="$(ApplicationManifest)" />
+    <Touch Files="$(ApplicationManifest)" />
+  </Target>
+</Project>

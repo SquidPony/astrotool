@@ -1,0 +1,97 @@
+@page "/window-mode"
+@using AstroTool.Core.Services
+@inject AstronomyService Astronomy
+@inject AstroTool.Services.SensorService Sensors
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="page-header">
+    <span class="page-title">📱 Window Mode</span>
+    <button class="btn-astro @(_isRunning ? "active" : "")" @onclick="ToggleSensors">
+        @(_isRunning ? "Stop" : "Start")
+    </button>
+</div>
+
+<div class="window-canvas-container">
+    <canvas id="windowCanvas" class="window-canvas"></canvas>
+    <div class="sensor-info">
+        Az: @Sensors.Azimuth.ToString("F1")°<br/>
+        Alt: @Sensors.Altitude.ToString("F1")°<br/>
+        @(_isRunning ? "🟢 Active" : "⏸ Paused")
+    </div>
+</div>
+
+<div style="padding:10px 16px;font-size:12px;color:#4a6a8a">
+    Point your device toward the sky to identify celestial objects.
+    @if (!Sensors.IsSupported)
+    {
+        <span style="color:#aa4444"> Sensors not available on this device.</span>
+    }
+</div>
+
+@code {
+    private bool _isRunning = false;
+    private System.Threading.Timer? _renderTimer;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Sensors.OnOrientationChanged += OnOrientationChanged;
+            _renderTimer = new System.Threading.Timer(
+                async _ => await RenderWindowMode(), null,
+                TimeSpan.FromMilliseconds(200),
+                TimeSpan.FromMilliseconds(100));
+        }
+    }
+
+    private void OnOrientationChanged() => _ = RenderWindowMode();
+
+    private async Task RenderWindowMode()
+    {
+        try
+        {
+            var bodies = Astronomy.GetVisibleBodies(
+                includeSun: false, includeMoon: true,
+                includePlanets: true, includeStars: true, minAlt: -30);
+
+            var bodyData = bodies.Select(b => new {
+                name = b.Name,
+                altitude = b.Position.Altitude,
+                azimuth = b.Position.Azimuth,
+                magnitude = b.Position.Magnitude,
+                color = b.Color,
+                bodyType = b.BodyType.ToString(),
+                illuminatedFraction = b.Position.IlluminatedFraction,
+                phaseAngle = b.Position.PhaseAngle
+            });
+
+            await JS.InvokeVoidAsync("AstroTool.renderWindowMode",
+                "windowCanvas", bodyData,
+                Sensors.Azimuth, Sensors.Altitude, 30.0);
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { /* ignore */ }
+    }
+
+    private void ToggleSensors()
+    {
+        if (_isRunning)
+        {
+            Sensors.Stop();
+            _isRunning = false;
+        }
+        else
+        {
+            Sensors.Start();
+            _isRunning = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        Sensors.OnOrientationChanged -= OnOrientationChanged;
+        _renderTimer?.Dispose();
+    }
+}

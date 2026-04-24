@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AstroTool.Core/AstroTool.Core.csproj" />
+  <Project Path="AstroTool/AstroTool.csproj" />
+</Solution>
