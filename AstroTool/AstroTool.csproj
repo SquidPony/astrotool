@@ -1,8 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
-        <TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
-        <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('linux'))">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+        <AndroidSdkPath Condition="'$(AndroidSdkDirectory)' != ''">$(AndroidSdkDirectory)</AndroidSdkPath>
+        <AndroidSdkPath Condition="'$(AndroidSdkPath)' == '' and '$(ANDROID_SDK_ROOT)' != ''">$(ANDROID_SDK_ROOT)</AndroidSdkPath>
+        <AndroidSdkPath Condition="'$(AndroidSdkPath)' == ''">$([System.Environment]::GetFolderPath(SpecialFolder.UserProfile))/Library/Android/sdk</AndroidSdkPath>
+
+        <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
+        <TargetFrameworks Condition="'$(AndroidSdkPath)' != '' and Exists('$(AndroidSdkPath)')">$(TargetFrameworks);net10.0-android</TargetFrameworks>
+        <EnableAppleTargets Condition="'$(EnableAppleTargets)' == ''">false</EnableAppleTargets>
+        <TargetFrameworks Condition="'$(EnableAppleTargets)' == 'true' and $([MSBuild]::IsOSPlatform('osx')) and Exists('/Applications/Xcode.app/Contents/Developer')">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
 
         <!-- Note for MacCatalyst:
             The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
