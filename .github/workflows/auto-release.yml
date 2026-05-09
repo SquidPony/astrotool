@@ -50,16 +50,16 @@ jobs:
               const shortSha = (pr.head.sha || context.sha).slice(0, 7);
               tag = `v${yyyy}.${mm}.${dd}-pr${pr.number}-${shortSha}`;
               targetCommitish = pr.head.sha || context.sha;
-              releaseName = `PR Preview ${tag}`;
-              body = `Automated preview release for PR #${pr.number}: ${pr.title}`;
+              releaseName = `🔍 Preview: ${pr.title}`;
+              body = `**Preview release** of PR #${pr.number}\n\n${pr.title}\n\nBuilt artifacts will be attached once the build completes.`;
               prerelease = true;
             } else if (eventName === "pull_request" && action === "closed") {
               const pr = context.payload.pull_request;
               const shortSha = (pr.merge_commit_sha || context.sha).slice(0, 7);
-              tag = `v${yyyy}.${mm}.${dd}-merge-pr${pr.number}-${shortSha}`;
+              tag = `v${yyyy}.${mm}.${dd}-release-pr${pr.number}-${shortSha}`;
               targetCommitish = pr.merge_commit_sha || "main";
-              releaseName = `Merged PR Release ${tag}`;
-              body = `Automated release for merged PR #${pr.number}: ${pr.title}`;
+              releaseName = `✅ Release: ${pr.title}`;
+              body = `**Release** of merged PR #${pr.number}\n\n${pr.title}\n\nExecutable build artifacts are attached below.`;
             } else {
               // Skip duplicate release creation when this push commit is already
               // the merge commit of a PR into main.
@@ -76,10 +76,10 @@ jobs:
               }
 
               const shortSha = (context.sha || "").slice(0, 7);
-              tag = `v${yyyy}.${mm}.${dd}-main-${shortSha}`;
+              tag = `v${yyyy}.${mm}.${dd}-build-${shortSha}`;
               targetCommitish = context.sha || "main";
-              releaseName = `Main Push Release ${tag}`;
-              body = `Automated release for push to main at ${context.sha}`;
+              releaseName = `📦 Build: ${yyyy}-${mm}-${dd}`;
+              body = `**Automated build release** for main branch commit ${shortSha}\n\nExecutable build artifacts are attached below.`;
             }
 
             if (skipRelease) {
