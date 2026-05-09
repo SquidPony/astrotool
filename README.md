@@ -35,26 +35,144 @@ dotnet workload restore
 
 On macOS, the repo enables Apple targets automatically when Xcode is available, so the default solution build includes MacCatalyst and iOS support.
 
-## Restore Dependencies
+## Build From CLI (Recommended)
 
-From the repository root:
+Use the repo scripts to run restore, build, tests, and publish artifacts with one command.
+
+On Linux/macOS:
+
+```bash
+./scripts/build.sh
+```
+
+On Windows PowerShell:
+
+```powershell
+./scripts/build.ps1
+```
+
+By default, scripts:
+
+1. Restore dependencies
+2. Build `AstroTool.Core`
+3. Run `AstroTool.Core.Tests`
+4. Publish platform outputs into `./artifacts`
+
+### Platform Selection
+
+Build selected platforms only:
+
+```bash
+./scripts/build.sh --platform windows --platform android
+```
+
+```powershell
+./scripts/build.ps1 -Platform windows,android
+```
+
+Available platforms:
+
+- `windows`
+- `android`
+- `ios` (macOS + Xcode required)
+- `maccatalyst` (macOS + Xcode required)
+
+The scripts automatically skip unavailable platform targets unless `--strict` (or `-Strict`) is used.
+
+### Build Outputs
+
+Published app artifacts are written to:
+
+- `artifacts/windows`
+- `artifacts/android`
+- `artifacts/ios`
+- `artifacts/maccatalyst`
+
+Each run also writes `artifacts/BUILD_SUMMARY.txt`.
+
+### Useful Options
+
+Linux/macOS:
+
+```bash
+./scripts/build.sh --skip-tests --configuration Debug --output ./out --windows-rid win-x64
+```
+
+Windows PowerShell:
+
+```powershell
+./scripts/build.ps1 -SkipTests -Configuration Debug -Output ./out -WindowsRid win-x64
+```
+
+Use `--help` or `Get-Help ./scripts/build.ps1 -Detailed` for full details.
+
+## Run Locally From CLI (Recommended)
+
+Use the repo run scripts to launch the app locally with a host-aware default target.
+
+On Linux/macOS:
+
+```bash
+./scripts/run.sh
+```
+
+On Windows PowerShell:
+
+```powershell
+./scripts/run.ps1
+```
+
+By default (`auto` platform):
+
+1. macOS runs `maccatalyst`
+2. Windows runs `windows`
+3. Linux runs `android` when Android SDK is available
+
+### Choose a Specific Run Target
+
+Linux/macOS:
+
+```bash
+./scripts/run.sh --platform android
+./scripts/run.sh --platform ios
+./scripts/run.sh --platform maccatalyst --configuration Release
+```
+
+Windows PowerShell:
+
+```powershell
+./scripts/run.ps1 -Platform windows
+./scripts/run.ps1 -Platform android
+./scripts/run.ps1 -Platform maccatalyst -Configuration Release
+```
+
+Available run platforms:
+
+- `auto`
+- `windows` (Windows host or Linux WSL)
+- `android` (requires Android SDK)
+- `ios` (macOS + Xcode required)
+- `maccatalyst` (macOS + Xcode required)
+
+From Linux WSL, `./scripts/run.sh --platform windows` automatically forwards to Windows PowerShell and launches the Windows target.
+
+Useful option:
+
+```bash
+./scripts/run.sh --no-restore
+```
+
+```powershell
+./scripts/run.ps1 -NoRestore
+```
+
+## Manual Build Commands (Optional)
+
+If you want to run dotnet commands directly instead of using the scripts:
 
 ```bash
 dotnet restore
-```
-
-## Build
-
-Build everything in the solution:
-
-```bash
 dotnet build AstroTool.slnx
-```
-
-Build only the core library (fast sanity check):
-
-```bash
-dotnet build AstroTool.Core/AstroTool.Core.csproj
 ```
 
 Build MAUI app for a specific target framework:
@@ -63,7 +181,7 @@ Build MAUI app for a specific target framework:
 dotnet build AstroTool/AstroTool.csproj -f net10.0-android
 ```
 
-Build for Apple targets (macOS with full Xcode installed and selected):
+Build Apple targets (macOS with full Xcode installed and selected):
 
 ```bash
 dotnet build AstroTool/AstroTool.csproj -f net10.0-maccatalyst
@@ -89,12 +207,16 @@ Or run tests from solution level:
 dotnet test AstroTool.slnx
 ```
 
-## Optional: Launch the MAUI App
+## Manual Run Command (Optional)
 
-After selecting a valid target framework and having platform tooling installed:
+If you want to run dotnet directly instead of using scripts:
 
 ```bash
-dotnet run --project AstroTool/AstroTool.csproj -f net10.0-maccatalyst
+dotnet run --project AstroTool/AstroTool.csproj -f net10.0-maccatalyst -p:EnableAppleTargets=true
 ```
 
-On macOS, use `net10.0-ios` when running on an iOS simulator/device.
+For iOS on macOS, enable the iOS target explicitly:
+
+```bash
+dotnet run --project AstroTool/AstroTool.csproj -f net10.0-ios -p:EnableAppleTargets=true -p:EnableIosTarget=true
+```
