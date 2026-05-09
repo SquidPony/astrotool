@@ -190,6 +190,7 @@ jobs:
           -c Release
           -p:RuntimeIdentifier=maccatalyst-arm64
           -p:MtouchLink=None
+          -p:PublishTrimmed=false
           -p:EnableCodeSigning=false
           -p:CodesignKey=""
           -p:CodesignProvision=""
