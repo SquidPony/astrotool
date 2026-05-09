@@ -149,7 +149,7 @@ jobs:
         run: >
           dotnet build AstroTool/AstroTool.csproj
           -f net10.0-ios
-          -c Release
+          -c Debug
           -p:EnableAppleTargets=false
           -p:EnableIosTarget=true
           -p:RuntimeIdentifier=iossimulator-arm64
@@ -160,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-simulator-app
-          path: AstroTool/bin/Release/net10.0-ios/iossimulator-arm64/**/*.app
+          path: AstroTool/bin/Debug/net10.0-ios/iossimulator-arm64/**/*.app
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ jobs:
         run: >
           dotnet build AstroTool/AstroTool.csproj
           -f net10.0-maccatalyst
-          -c Release
+          -c Debug
           -p:RuntimeIdentifier=maccatalyst-arm64
           -p:MtouchLink=SdkOnly
           -p:EnableCodeSigning=false
@@ -198,7 +198,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: maccatalyst-app
-          path: AstroTool/bin/Release/net10.0-maccatalyst/**/*.app
+          path: AstroTool/bin/Debug/net10.0-maccatalyst/**/*.app
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────
