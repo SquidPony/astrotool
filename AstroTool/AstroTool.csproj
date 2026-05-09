@@ -6,7 +6,9 @@
         <AndroidSdkPath Condition="'$(AndroidSdkPath)' == ''">$([System.Environment]::GetFolderPath(SpecialFolder.UserProfile))/Library/Android/sdk</AndroidSdkPath>
 
         <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
-        <TargetFrameworks Condition="'$(AndroidSdkPath)' != '' and Exists('$(AndroidSdkPath)')">$(TargetFrameworks);net10.0-android</TargetFrameworks>
+        <EnableAndroidTarget Condition="'$(EnableAndroidTarget)' == '' and '$(CI)' == 'true'">false</EnableAndroidTarget>
+        <EnableAndroidTarget Condition="'$(EnableAndroidTarget)' == ''">true</EnableAndroidTarget>
+        <TargetFrameworks Condition="'$(EnableAndroidTarget)' == 'true' and '$(AndroidSdkPath)' != '' and Exists('$(AndroidSdkPath)')">$(TargetFrameworks);net10.0-android</TargetFrameworks>
         <EnableAppleTargets Condition="'$(EnableAppleTargets)' == '' and $([MSBuild]::IsOSPlatform('osx'))">true</EnableAppleTargets>
         <EnableAppleTargets Condition="'$(EnableAppleTargets)' == ''">false</EnableAppleTargets>
         <!-- MacCatalyst: included in the default macOS build when Xcode is present -->
