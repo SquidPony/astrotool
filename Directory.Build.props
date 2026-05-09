@@ -1,0 +1,13 @@
+<Project>
+  <!-- Read version from version.txt and apply it to all projects -->
+  <Target Name="ReadVersionFromFile" BeforeTargets="Build">
+    <ReadLinesFromFile File="$(MSBuildThisFileDirectory)version.txt">
+      <Output TaskParameter="Lines" ItemName="VersionFileContents"/>
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <AppVersion>@(VersionFileContents)</AppVersion>
+      <AppVersion>$(AppVersion.Trim())</AppVersion>
+    </PropertyGroup>
+    <Message Text="Version from file: $(AppVersion)" Importance="high"/>
+  </Target>
+</Project>
