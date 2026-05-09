@@ -7,8 +7,13 @@
 
         <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
         <TargetFrameworks Condition="'$(AndroidSdkPath)' != '' and Exists('$(AndroidSdkPath)')">$(TargetFrameworks);net10.0-android</TargetFrameworks>
+        <EnableAppleTargets Condition="'$(EnableAppleTargets)' == '' and $([MSBuild]::IsOSPlatform('osx'))">true</EnableAppleTargets>
         <EnableAppleTargets Condition="'$(EnableAppleTargets)' == ''">false</EnableAppleTargets>
-        <TargetFrameworks Condition="'$(EnableAppleTargets)' == 'true' and $([MSBuild]::IsOSPlatform('osx')) and Exists('/Applications/Xcode.app/Contents/Developer')">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+        <!-- MacCatalyst: included in the default macOS build when Xcode is present -->
+        <TargetFrameworks Condition="'$(EnableAppleTargets)' == 'true' and $([MSBuild]::IsOSPlatform('osx')) and Exists('/Applications/Xcode.app/Contents/Developer')">$(TargetFrameworks);net10.0-maccatalyst</TargetFrameworks>
+        <!-- iOS: opt-in only (requires iOS simulator runtimes installed in Xcode) -->
+        <EnableIosTarget Condition="'$(EnableIosTarget)' == ''">false</EnableIosTarget>
+        <TargetFrameworks Condition="'$(EnableIosTarget)' == 'true' and $([MSBuild]::IsOSPlatform('osx')) and Exists('/Applications/Xcode.app/Contents/Developer')">$(TargetFrameworks);net10.0-ios</TargetFrameworks>
 
         <!-- Note for MacCatalyst:
             The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.

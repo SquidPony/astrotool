@@ -1,4 +1,12 @@
 <Project>
+  <!-- The installed MAUI iOS/MacCatalyst workload packs (26.4.x) do a strict
+       major.minor Xcode check. When Xcode is newer than the pack expects (e.g.
+       26.5 with 26.4 packs) the check fires even though the build works fine.
+       Suppress it on macOS until updated packs supporting Xcode 26.5 ship. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('osx'))">
+    <ValidateXcodeVersion>false</ValidateXcodeVersion>
+  </PropertyGroup>
+
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('linux'))">
     <UseXamlCompilerExecutable>false</UseXamlCompilerExecutable>
   </PropertyGroup>
