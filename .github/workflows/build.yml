@@ -70,14 +70,16 @@ jobs:
         run: dotnet workload install maui-android
 
       - name: Restore dependencies
-        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFramework=net10.0-android
+        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFrameworks=net10.0-android -p:TargetFramework=net10.0-android
 
       - name: Build Android APK
         run: >
           dotnet publish AstroTool/AstroTool.csproj
           -f net10.0-android
           -c Release
+          -p:TargetFrameworks=net10.0-android
           -p:AndroidKeyStore=false
+          --no-restore
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
@@ -107,7 +109,7 @@ jobs:
         run: dotnet workload install maui-windows
 
       - name: Restore dependencies
-        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFramework=net10.0-windows10.0.19041.0 -p:EnableWindowsTargeting=true -r win-x64
+        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFrameworks=net10.0-windows10.0.19041.0 -p:TargetFramework=net10.0-windows10.0.19041.0 -p:EnableWindowsTargeting=true -r win-x64
 
       - name: Publish Windows (self-contained)
         run: >
@@ -115,8 +117,10 @@ jobs:
           -f net10.0-windows10.0.19041.0
           -c Release
           -r win-x64
+          -p:TargetFrameworks=net10.0-windows10.0.19041.0
           -p:EnableWindowsTargeting=true
           --self-contained true
+          --no-restore
 
       - name: Zip Windows publish output
         run: |
@@ -151,17 +155,19 @@ jobs:
         run: dotnet workload install maui-ios
 
       - name: Restore dependencies
-        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFramework=net10.0-ios -p:EnableIosTarget=true -p:RuntimeIdentifier=iossimulator-arm64
+        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFrameworks=net10.0-ios -p:TargetFramework=net10.0-ios -p:EnableIosTarget=true -p:RuntimeIdentifier=iossimulator-arm64
 
       - name: Build iOS (simulator)
         run: >
           dotnet build AstroTool/AstroTool.csproj
           -f net10.0-ios
           -c Release
+          -p:TargetFrameworks=net10.0-ios
           -p:EnableIosTarget=true
           -p:RuntimeIdentifier=iossimulator-arm64
           -p:CodesignKey=""
           -p:CodesignProvision=""
+          --no-restore
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
@@ -191,17 +197,19 @@ jobs:
         run: dotnet workload install maui-maccatalyst
 
       - name: Restore dependencies
-        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFramework=net10.0-maccatalyst -p:RuntimeIdentifier=maccatalyst-arm64
+        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFrameworks=net10.0-maccatalyst -p:TargetFramework=net10.0-maccatalyst -p:RuntimeIdentifier=maccatalyst-arm64
 
       - name: Build macCatalyst
         run: >
           dotnet build AstroTool/AstroTool.csproj
           -f net10.0-maccatalyst
           -c Release
+          -p:TargetFrameworks=net10.0-maccatalyst
           -p:RuntimeIdentifier=maccatalyst-arm64
           -p:EnableCodeSigning=false
           -p:CodesignKey=""
           -p:CodesignProvision=""
+          --no-restore
 
       - name: Upload macCatalyst artifact
         uses: actions/upload-artifact@v4
