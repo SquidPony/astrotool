@@ -23,7 +23,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.ref_protected == true) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request' && github.event.action == 'opened' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.repo.full_name == github.repository)
     runs-on: ubuntu-latest
