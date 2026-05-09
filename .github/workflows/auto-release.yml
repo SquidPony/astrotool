@@ -1,0 +1,131 @@
+name: Auto Release on PR and Main Events
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, closed ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: auto-release-${{ github.repository }}-${{ github.event.pull_request.merge_commit_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.ref_protected == true) ||
+      (github.event_name == 'pull_request' && github.event.action == 'opened' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create release for event
+        id: release
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const eventName = context.eventName;
+            const action = context.payload.action || "";
+
+            const now = new Date();
+            const yyyy = now.getUTCFullYear();
+            const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+            const dd = String(now.getUTCDate()).padStart(2, "0");
+
+            let tag;
+            let targetCommitish;
+            let releaseName;
+            let body;
+            let prerelease = false;
+            let skipRelease = false;
+
+            if (eventName === "pull_request" && action === "opened") {
+              const pr = context.payload.pull_request;
+              const shortSha = (pr.head.sha || context.sha).slice(0, 7);
+              tag = `v${yyyy}.${mm}.${dd}-pr${pr.number}-${shortSha}`;
+              targetCommitish = pr.head.sha || context.sha;
+              releaseName = `PR Preview ${tag}`;
+              body = `Automated preview release for PR #${pr.number}: ${pr.title}`;
+              prerelease = true;
+            } else if (eventName === "pull_request" && action === "closed") {
+              const pr = context.payload.pull_request;
+              const shortSha = (pr.merge_commit_sha || context.sha).slice(0, 7);
+              tag = `v${yyyy}.${mm}.${dd}-merge-pr${pr.number}-${shortSha}`;
+              targetCommitish = pr.merge_commit_sha || "main";
+              releaseName = `Merged PR Release ${tag}`;
+              body = `Automated release for merged PR #${pr.number}: ${pr.title}`;
+            } else {
+              // Skip duplicate release creation when this push commit is already
+              // the merge commit of a PR into main.
+              const associated = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: context.sha
+              });
+
+              const mergedMainPr = (associated.data || []).find((pr) => pr.merged_at && pr.base && pr.base.ref === "main");
+              if (mergedMainPr) {
+                skipRelease = true;
+                core.info(`Skipping push release for ${context.sha}; commit is merge of PR #${mergedMainPr.number}.`);
+              }
+
+              const shortSha = (context.sha || "").slice(0, 7);
+              tag = `v${yyyy}.${mm}.${dd}-main-${shortSha}`;
+              targetCommitish = context.sha || "main";
+              releaseName = `Main Push Release ${tag}`;
+              body = `Automated release for push to main at ${context.sha}`;
+            }
+
+            if (skipRelease) {
+              core.setOutput("tag", "skipped");
+              core.setOutput("url", "skipped");
+              return;
+            }
+
+            core.info(`Preparing release with tag ${tag}`);
+
+            let release;
+            try {
+              const created = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                target_commitish: targetCommitish,
+                name: releaseName,
+                body,
+                draft: false,
+                prerelease,
+                generate_release_notes: true
+              });
+              release = created.data;
+              core.info(`Created release: ${release.html_url}`);
+            } catch (error) {
+              const message = error.message || "";
+              const alreadyExists = error.status === 422 && message.includes("already_exists");
+
+              if (!alreadyExists) {
+                throw error;
+              }
+
+              core.info(`Release tag ${tag} already exists. Fetching existing release.`);
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              release = existing.data;
+            }
+
+            core.setOutput("tag", tag);
+            core.setOutput("url", release.html_url);
+
+      - name: Release summary
+        run: |
+          echo "Release created/available: ${{ steps.release.outputs.url }}"
+          echo "Tag: ${{ steps.release.outputs.tag }}"
