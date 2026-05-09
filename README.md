@@ -8,7 +8,7 @@ AstroTool is a .NET MAUI + Blazor app with a shared core library and xUnit tests
 
 Install the following tools before building locally:
 
-1. .NET 10 SDK
+1. .NET 10 SDK, pinned by the repo to 10.0.203
 2. .NET MAUI workloads
 3. Platform toolchains you want to target:
 	- Android: Android SDK (via Visual Studio or Android Studio)
@@ -32,6 +32,8 @@ If workloads are already installed but builds fail after SDK updates, run:
 ```bash
 dotnet workload restore
 ```
+
+On macOS, the repo enables Apple targets automatically when Xcode is available, so the default solution build includes MacCatalyst and iOS support.
 
 ## Restore Dependencies
 
@@ -64,8 +66,13 @@ dotnet build AstroTool/AstroTool.csproj -f net10.0-android
 Build for Apple targets (macOS with full Xcode installed and selected):
 
 ```bash
-dotnet build AstroTool/AstroTool.csproj -f net10.0-maccatalyst -p:EnableAppleTargets=true
-dotnet build AstroTool/AstroTool.csproj -f net10.0-ios -p:EnableAppleTargets=true
+dotnet build AstroTool/AstroTool.csproj -f net10.0-maccatalyst
+```
+
+Build for iOS (requires iOS simulator runtimes installed in Xcode):
+
+```bash
+dotnet build AstroTool/AstroTool.csproj -f net10.0-ios -p:EnableIosTarget=true
 ```
 
 ## Run Tests
@@ -87,7 +94,7 @@ dotnet test AstroTool.slnx
 After selecting a valid target framework and having platform tooling installed:
 
 ```bash
-dotnet run --project AstroTool/AstroTool.csproj -f net10.0-maccatalyst -p:EnableAppleTargets=true
+dotnet run --project AstroTool/AstroTool.csproj -f net10.0-maccatalyst
 ```
 
 On macOS, use `net10.0-ios` when running on an iOS simulator/device.
