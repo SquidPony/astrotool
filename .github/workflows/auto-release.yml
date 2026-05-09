@@ -7,6 +7,10 @@ on:
   push:
     branches: [ main ]
 
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  NUGET_XMLDOC_MODE: skip
+
 permissions:
   contents: write
   pull-requests: read
@@ -36,33 +40,65 @@ jobs:
             const eventName = context.eventName;
             const action = context.payload.action || "";
 
-            const now = new Date();
-            const yyyy = now.getUTCFullYear();
-            const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-            const dd = String(now.getUTCDate()).padStart(2, "0");
-
             let tag;
             let targetCommitish;
+            let versionRef;
             let releaseName;
             let body;
             let prerelease = false;
             let skipRelease = false;
 
+            async function readVersionAtRef(ref) {
+              try {
+                const response = await github.rest.repos.getContent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path: "version.txt",
+                  ref
+                });
+
+                const content = Buffer.from(response.data.content || "", "base64").toString("utf8").trim();
+                if (/^\d+\.\d+\.\d+$/.test(content)) {
+                  return content;
+                }
+
+                core.warning(`version.txt at ${ref} is invalid ('${content}'). Falling back to 1.0.0.`);
+                return "1.0.0";
+              } catch (error) {
+                core.warning(`Unable to read version.txt at ${ref}. Falling back to 1.0.0.`);
+                return "1.0.0";
+              }
+            }
+
+            function formatReleaseVersion(version) {
+              const parts = version.split(".");
+              if (parts.length === 3 && parts[2] === "0") {
+                return `${parts[0]}.${parts[1]}`;
+              }
+
+              return version;
+            }
+
             if (eventName === "pull_request" && action === "opened") {
               const pr = context.payload.pull_request;
               const shortSha = (pr.head.sha || context.sha).slice(0, 7);
-              tag = `v${yyyy}.${mm}.${dd}-pr${pr.number}-${shortSha}`;
               targetCommitish = pr.head.sha || context.sha;
-              releaseName = `🔍 Preview: ${pr.title}`;
-              body = `**Preview release** of PR #${pr.number}\n\n${pr.title}\n\nBuilt artifacts will be attached once the build completes.`;
+              versionRef = targetCommitish;
+              const appVersion = await readVersionAtRef(versionRef);
+              const releaseVersion = formatReleaseVersion(appVersion);
+              tag = `v${releaseVersion}-preview-pr${pr.number}-${shortSha}`;
+              releaseName = `Preview Release ${releaseVersion}: ${pr.title}`;
+              body = `**Preview release** of PR #${pr.number}\n\nVersion: ${releaseVersion}\n\n${pr.title}\n\nBuilt artifacts will be attached once the build completes.`;
               prerelease = true;
             } else if (eventName === "pull_request" && action === "closed") {
               const pr = context.payload.pull_request;
-              const shortSha = (pr.merge_commit_sha || context.sha).slice(0, 7);
-              tag = `v${yyyy}.${mm}.${dd}-release-pr${pr.number}-${shortSha}`;
               targetCommitish = pr.merge_commit_sha || "main";
-              releaseName = `✅ Release: ${pr.title}`;
-              body = `**Release** of merged PR #${pr.number}\n\n${pr.title}\n\nExecutable build artifacts are attached below.`;
+              versionRef = pr.merge_commit_sha || context.sha;
+              const appVersion = await readVersionAtRef(versionRef);
+              const releaseVersion = formatReleaseVersion(appVersion);
+              tag = `v${releaseVersion}`;
+              releaseName = `Release ${releaseVersion}: ${pr.title}`;
+              body = `**Release** of merged PR #${pr.number}\n\nVersion: ${releaseVersion}\n\n${pr.title}\n\nExecutable build artifacts are attached below.`;
             } else {
               // Skip duplicate release creation when this push commit is already
               // the merge commit of a PR into main.
@@ -79,10 +115,13 @@ jobs:
               }
 
               const shortSha = (context.sha || "").slice(0, 7);
-              tag = `v${yyyy}.${mm}.${dd}-build-${shortSha}`;
               targetCommitish = context.sha || "main";
-              releaseName = `📦 Build: ${yyyy}-${mm}-${dd}`;
-              body = `**Automated build release** for main branch commit ${shortSha}\n\nExecutable build artifacts are attached below.`;
+              versionRef = targetCommitish;
+              const appVersion = await readVersionAtRef(versionRef);
+              const releaseVersion = formatReleaseVersion(appVersion);
+              tag = `v${releaseVersion}-build-${shortSha}`;
+              releaseName = `Build ${releaseVersion}`;
+              body = `**Automated build release** for main branch commit ${shortSha}\n\nVersion: ${releaseVersion}\n\nExecutable build artifacts are attached below.`;
             }
 
             if (skipRelease) {
@@ -143,27 +182,16 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Set up Java
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-        with:
-          java-version: '21'
-          distribution: 'microsoft'
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+      - name: Set up Android build environment
+        uses: ./.github/actions/setup-android-build-env
         with:
           dotnet-version: '10.0.x'
-
-      - name: Install Android workload
-        run: dotnet workload install maui-android
+          java-version: '21'
 
       - name: Build Android APK
-        run: >
-          dotnet publish AstroTool/AstroTool.csproj
-          -f net10.0-android
-          -c Release
-          -p:EnableAndroidTarget=true
-          -p:AndroidKeyStore=false
+        uses: ./.github/actions/build-android-apk
+        with:
+          configuration: Release
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -183,7 +211,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: ./.github/actions/setup-dotnet-common
         with:
           dotnet-version: '10.0.x'
 
@@ -222,7 +250,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: ./.github/actions/setup-dotnet-common
         with:
           dotnet-version: '10.0.203'
 
@@ -259,7 +287,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: ./.github/actions/setup-dotnet-common
         with:
           dotnet-version: '10.0.203'
 
@@ -344,7 +372,9 @@ jobs:
     if: |
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      github.event.head_commit != null
+      github.event.head_commit != null &&
+      github.actor != 'github-actions[bot]' &&
+      !startsWith(github.event.head_commit.message, 'update-version:')
     runs-on: ubuntu-latest
     needs: [ create-release ]
     permissions:
@@ -355,7 +385,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: ./.github/actions/setup-dotnet-common
         with:
           dotnet-version: '10.0.x'
 
