@@ -202,6 +202,7 @@ jobs:
           path: AstroTool/bin/Debug/net10.0-maccatalyst/**/*.app
           if-no-files-found: error
 
+
   # ─────────────────────────────────────────────────────────
   # Attach artifacts to GitHub Release
   # ─────────────────────────────────────────────────────────
@@ -240,6 +241,7 @@ jobs:
           name: maccatalyst-app
           path: ./artifacts/maccatalyst
 
+
       - name: Zip iOS artifact
         run: |
           cd ./artifacts/ios
@@ -258,3 +260,4 @@ jobs:
             ./artifacts/windows/*.zip
             ./artifacts/astrotool-ios-simulator.zip
             ./artifacts/astrotool-maccatalyst.zip
+
