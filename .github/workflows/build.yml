@@ -152,6 +152,7 @@ jobs:
           -c Debug
           -p:EnableAppleTargets=false
           -p:EnableIosTarget=true
+          -p:MtouchLink=SdkOnly
           -p:RuntimeIdentifier=iossimulator-arm64
           -p:CodesignKey=""
           -p:CodesignProvision=""
