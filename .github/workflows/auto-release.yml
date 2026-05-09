@@ -46,7 +46,6 @@ jobs:
             let releaseName;
             let body;
             let prerelease = false;
-            let skipRelease = false;
 
             async function readVersionAtRef(ref) {
               try {
@@ -100,20 +99,6 @@ jobs:
               releaseName = `Release ${releaseVersion}: ${pr.title}`;
               body = `**Release** of merged PR #${pr.number}\n\nVersion: ${releaseVersion}\n\n${pr.title}\n\nExecutable build artifacts are attached below.`;
             } else {
-              // Skip duplicate release creation when this push commit is already
-              // the merge commit of a PR into main.
-              const associated = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                commit_sha: context.sha
-              });
-
-              const mergedMainPr = (associated.data || []).find((pr) => pr.merged_at && pr.base && pr.base.ref === "main");
-              if (mergedMainPr) {
-                skipRelease = true;
-                core.info(`Skipping push release for ${context.sha}; commit is merge of PR #${mergedMainPr.number}.`);
-              }
-
               const shortSha = (context.sha || "").slice(0, 7);
               targetCommitish = context.sha || "main";
               versionRef = targetCommitish;
@@ -122,12 +107,6 @@ jobs:
               tag = `v${releaseVersion}-build-${shortSha}`;
               releaseName = `Build ${releaseVersion}`;
               body = `**Automated build release** for main branch commit ${shortSha}\n\nVersion: ${releaseVersion}\n\nExecutable build artifacts are attached below.`;
-            }
-
-            if (skipRelease) {
-              core.setOutput("tag", "skipped");
-              core.setOutput("url", "skipped");
-              return;
             }
 
             core.info(`Preparing release with tag ${tag}`);
@@ -176,7 +155,6 @@ jobs:
     name: Build Android Release Asset
     runs-on: ubuntu-latest
     needs: [ create-release ]
-    if: needs.create-release.outputs.tag != 'skipped'
     permissions:
       contents: read
     steps:
@@ -204,7 +182,6 @@ jobs:
     name: Build Windows Release Asset
     runs-on: ubuntu-latest
     needs: [ create-release ]
-    if: needs.create-release.outputs.tag != 'skipped'
     permissions:
       contents: read
     steps:
@@ -243,7 +220,6 @@ jobs:
     name: Build iOS Release Asset
     runs-on: macos-latest
     needs: [ create-release ]
-    if: needs.create-release.outputs.tag != 'skipped'
     permissions:
       contents: read
     steps:
@@ -280,7 +256,6 @@ jobs:
     name: Build macCatalyst Release Asset
     runs-on: macos-latest
     needs: [ create-release ]
-    if: needs.create-release.outputs.tag != 'skipped'
     permissions:
       contents: read
     steps:
@@ -316,7 +291,7 @@ jobs:
     name: Attach Built Assets to Release
     runs-on: ubuntu-latest
     needs: [ create-release, build-android-release, build-windows-release, build-ios-release, build-maccatalyst-release ]
-    if: ${{ always() && needs.create-release.result == 'success' && needs.create-release.outputs.tag != 'skipped' }}
+    if: ${{ always() && needs.create-release.result == 'success' }}
     permissions:
       contents: write
     steps:

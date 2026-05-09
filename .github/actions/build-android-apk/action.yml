@@ -15,6 +15,7 @@ runs:
       shell: bash
       run: |
         restore_start=$(date +%s)
+        dotnet restore AstroTool.Core/AstroTool.Core.csproj
         dotnet restore AstroTool/AstroTool.csproj \
           -p:TargetFramework=net10.0-android \
           -p:RuntimeIdentifier=android-arm64 \
