@@ -16,7 +16,7 @@ jobs:
     name: Create GitHub Release
     if: |
       github.event_name == 'push' ||
-      (github.event_name == 'pull_request' && github.event.action == 'opened') ||
+      (github.event_name == 'pull_request' && github.event.action == 'opened' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
@@ -39,6 +39,7 @@ jobs:
             let releaseName;
             let body;
             let prerelease = false;
+            let skipRelease = false;
 
             if (eventName === "pull_request" && action === "opened") {
               const pr = context.payload.pull_request;
@@ -56,11 +57,31 @@ jobs:
               releaseName = `Merged PR Release ${tag}`;
               body = `Automated release for merged PR #${pr.number}: ${pr.title}`;
             } else {
+              // Skip duplicate release creation when this push commit is already
+              // the merge commit of a PR into main.
+              const associated = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: context.sha
+              });
+
+              const mergedMainPr = (associated.data || []).find((pr) => pr.merged_at && pr.base && pr.base.ref === "main");
+              if (mergedMainPr) {
+                skipRelease = true;
+                core.info(`Skipping push release for ${context.sha}; commit is merge of PR #${mergedMainPr.number}.`);
+              }
+
               const shortSha = (context.sha || "").slice(0, 7);
               tag = `v${yyyy}.${mm}.${dd}-main-${shortSha}`;
               targetCommitish = context.sha || "main";
               releaseName = `Main Push Release ${tag}`;
               body = `Automated release for push to main at ${context.sha}`;
+            }
+
+            if (skipRelease) {
+              core.setOutput("tag", "skipped");
+              core.setOutput("url", "skipped");
+              return;
             }
 
             core.info(`Preparing release with tag ${tag}`);
