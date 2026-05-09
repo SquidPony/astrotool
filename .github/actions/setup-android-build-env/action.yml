@@ -45,4 +45,15 @@ runs:
 
     - name: Install Android workload
       shell: bash
-      run: dotnet workload install maui-android --skip-manifest-update
+      run: |
+        install_start=$(date +%s)
+        dotnet workload install maui-android --skip-manifest-update
+        install_end=$(date +%s)
+        install_secs=$((install_end - install_start))
+        {
+          echo "### Android Setup Timing"
+          echo ""
+          echo "| Step | Duration (s) |"
+          echo "|---|---:|"
+          echo "| Install maui-android workload | ${install_secs} |"
+        } >> "$GITHUB_STEP_SUMMARY"

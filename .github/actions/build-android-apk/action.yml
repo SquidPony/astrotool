@@ -13,20 +13,36 @@ runs:
   steps:
     - name: Restore Android project
       shell: bash
-      run: >
-        dotnet restore AstroTool/AstroTool.csproj
-        -p:TargetFramework=net10.0-android
-        -p:EnableAndroidTarget=true
+      run: |
+        restore_start=$(date +%s)
+        dotnet restore AstroTool/AstroTool.csproj \
+          -p:TargetFramework=net10.0-android \
+          -p:EnableAndroidTarget=true
+        restore_end=$(date +%s)
+        echo "ANDROID_RESTORE_SECS=$((restore_end - restore_start))" >> "$GITHUB_ENV"
 
     - name: Build Android APK
       shell: bash
-      run: >
-        dotnet publish AstroTool/AstroTool.csproj
-        -f net10.0-android
-        -c ${{ inputs.configuration }}
-        --no-restore
-        -p:EnableAndroidTarget=true
-        -p:AndroidKeyStore=false
+      run: |
+        publish_start=$(date +%s)
+        dotnet publish AstroTool/AstroTool.csproj \
+          -f net10.0-android \
+          -c ${{ inputs.configuration }} \
+          --no-restore \
+          -p:EnableAndroidTarget=true \
+          -p:AndroidKeyStore=false
+        publish_end=$(date +%s)
+        publish_secs=$((publish_end - publish_start))
+        total_secs=$((ANDROID_RESTORE_SECS + publish_secs))
+        {
+          echo "### Android Build Timing"
+          echo ""
+          echo "| Step | Duration (s) |"
+          echo "|---|---:|"
+          echo "| Restore (net10.0-android) | ${ANDROID_RESTORE_SECS} |"
+          echo "| Publish APK | ${publish_secs} |"
+          echo "| Total (restore + publish) | ${total_secs} |"
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Verify APK output
       shell: bash
