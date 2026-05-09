@@ -109,7 +109,7 @@ jobs:
         run: dotnet workload install maui-windows
 
       - name: Restore dependencies
-        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFramework=net10.0-windows10.0.19041.0
+        run: dotnet restore AstroTool/AstroTool.csproj -p:TargetFramework=net10.0-windows10.0.19041.0 -p:EnableWindowsTargeting=true
 
       - name: Publish Windows (self-contained)
         run: >
@@ -117,6 +117,7 @@ jobs:
           -f net10.0-windows10.0.19041.0
           -c Release
           -r win-x64
+          -p:EnableWindowsTargeting=true
           --self-contained true
           --no-restore
 
