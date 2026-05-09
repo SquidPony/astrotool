@@ -140,7 +140,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.203'
 
       - name: Install iOS workload
         run: dotnet workload install maui-ios
@@ -179,7 +179,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.203'
 
       - name: Install macCatalyst workload
         run: dotnet workload install maui-maccatalyst
