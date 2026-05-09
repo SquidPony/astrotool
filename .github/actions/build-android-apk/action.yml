@@ -15,13 +15,13 @@ runs:
       shell: bash
       run: |
         restore_start=$(date +%s)
-        dotnet restore AstroTool.Core/AstroTool.Core.csproj
-        python3 -c "import json; from pathlib import Path; data = json.loads(Path('AstroTool.Core/obj/project.assets.json').read_text()); print('Core restore targets:', ', '.join(sorted(data.get('targets', {}).keys())))"
         dotnet restore AstroTool/AstroTool.csproj \
           -p:TargetFramework=net10.0-android \
           -p:EnableAndroidTarget=true \
           -p:UseCurrentRuntimeIdentifier=false
         python3 -c "import json; from pathlib import Path; data = json.loads(Path('AstroTool.Core/obj/project.assets.json').read_text()); print('Core assets after app restore:', ', '.join(sorted(data.get('targets', {}).keys())))"
+        dotnet restore AstroTool.Core/AstroTool.Core.csproj
+        python3 -c "import json; from pathlib import Path; data = json.loads(Path('AstroTool.Core/obj/project.assets.json').read_text()); print('Core restore targets:', ', '.join(sorted(data.get('targets', {}).keys())))"
         restore_end=$(date +%s)
         echo "ANDROID_RESTORE_SECS=$((restore_end - restore_start))" >> "$GITHUB_ENV"
 
