@@ -158,52 +158,13 @@ jobs:
           if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────
-  # macCatalyst app (macOS only)
-  # ─────────────────────────────────────────────────────────
-  build-maccatalyst:
-    name: Build macCatalyst
-    runs-on: macos-latest
-    needs: test
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Set up .NET
-        uses: ./.github/actions/setup-dotnet-common
-        with:
-          dotnet-version: '10.0.203'
-
-      - name: Install macCatalyst workload
-        run: dotnet workload install maui-maccatalyst
-
-      - name: Build macCatalyst
-        run: >
-          dotnet build AstroTool/AstroTool.csproj
-          -f net10.0-maccatalyst
-          -c Debug
-          -p:RuntimeIdentifier=maccatalyst-arm64
-          -p:MtouchLink=SdkOnly
-          -p:EnableCodeSigning=false
-          -p:CodesignKey=""
-          -p:CodesignProvision=""
-
-      - name: Upload macCatalyst artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: maccatalyst-app
-          path: AstroTool/bin/Debug/net10.0-maccatalyst/**/*.app
-          if-no-files-found: error
-
-
-  # ─────────────────────────────────────────────────────────
   # Attach artifacts to GitHub Release
   # ─────────────────────────────────────────────────────────
   publish-release:
     name: Publish Release Assets
     runs-on: ubuntu-latest
     if: ${{ always() && github.event_name == 'release' && github.event.release.draft == false }}
-    needs: [ build-android, build-windows, build-ios, build-maccatalyst ]
+    needs: [ build-android, build-windows, build-ios ]
     concurrency:
       group: publish-release-${{ github.event.release.tag_name }}
       cancel-in-progress: false
@@ -231,28 +192,14 @@ jobs:
           name: ios-simulator-app
           path: ./artifacts/ios
 
-      - name: Download macCatalyst app
-        if: ${{ needs.build-maccatalyst.result == 'success' }}
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: maccatalyst-app
-          path: ./artifacts/maccatalyst
-
-
       - name: Zip iOS artifact
         if: ${{ needs.build-ios.result == 'success' }}
         run: |
           cd ./artifacts/ios
           zip -r ../astrotool-ios-simulator.zip .
 
-      - name: Zip macCatalyst artifact
-        if: ${{ needs.build-maccatalyst.result == 'success' }}
-        run: |
-          cd ./artifacts/maccatalyst
-          zip -r ../astrotool-maccatalyst.zip .
-
       - name: Upload release assets
-        if: ${{ needs.build-android.result == 'success' || needs.build-windows.result == 'success' || needs.build-ios.result == 'success' || needs.build-maccatalyst.result == 'success' }}
+        if: ${{ needs.build-android.result == 'success' || needs.build-windows.result == 'success' || needs.build-ios.result == 'success' }}
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           fail_on_unmatched_files: false
@@ -260,5 +207,4 @@ jobs:
             ./artifacts/android/*.apk
             ./artifacts/windows/*.zip
             ./artifacts/astrotool-ios-simulator.zip
-            ./artifacts/astrotool-maccatalyst.zip
 
