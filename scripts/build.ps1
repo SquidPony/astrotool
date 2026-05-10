@@ -17,6 +17,8 @@ $AppProject = Join-Path $RepoRoot "AstroTool/AstroTool.csproj"
 $CoreProject = Join-Path $RepoRoot "AstroTool.Core/AstroTool.Core.csproj"
 $TestProject = Join-Path $RepoRoot "AstroTool.Core.Tests/AstroTool.Core.Tests.csproj"
 $OutputRoot = if ([System.IO.Path]::IsPathRooted($Output)) { $Output } else { Join-Path $RepoRoot $Output }
+$AndroidSdkPath = $null
+$AndroidUnavailableReason = $null
 
 function Write-Log {
     Param([string]$Message)
@@ -26,6 +28,15 @@ function Write-Log {
 function Write-Warn {
     Param([string]$Message)
     Write-Host "[build][warn] $Message" -ForegroundColor Yellow
+}
+
+function Invoke-Dotnet {
+    Param([string[]]$Arguments)
+
+    & dotnet @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet command failed with exit code ${LASTEXITCODE}: dotnet $($Arguments -join ' ')"
+    }
 }
 
 function Resolve-Platform {
@@ -55,26 +66,85 @@ function Handle-Unavailable {
         throw "Requested platform '$PlatformName' is unavailable: $Reason"
     }
 
-    Write-Warn "Skipping $PlatformName: $Reason"
+    Write-Warn "Skipping ${PlatformName}: $Reason"
 }
 
 function Can-BuildAndroid {
-    if ($env:ANDROID_SDK_ROOT -or $env:AndroidSdkDirectory) {
-        return $true
+    $script:AndroidUnavailableReason = $null
+
+    if ($AndroidSdkPath) {
+        # Path already detected from a previous check.
     }
 
-    $defaultPaths = @(
-        (Join-Path $HOME "AppData/Local/Android/Sdk"),
-        (Join-Path $HOME "Library/Android/sdk")
-    )
-
-    foreach ($path in $defaultPaths) {
-        if (Test-Path $path) {
-            return $true
+    if (-not $AndroidSdkPath) {
+        if ($env:AndroidSdkDirectory -and (Test-Path $env:AndroidSdkDirectory)) {
+            $script:AndroidSdkPath = $env:AndroidSdkDirectory
         }
     }
 
-    return $false
+    if (-not $AndroidSdkPath) {
+        if ($env:ANDROID_SDK_ROOT -and (Test-Path $env:ANDROID_SDK_ROOT)) {
+            $script:AndroidSdkPath = $env:ANDROID_SDK_ROOT
+        }
+    }
+
+    if (-not $AndroidSdkPath) {
+        $defaultPaths = @(
+            (Join-Path $HOME "AppData/Local/Android/Sdk"),
+            (Join-Path $HOME "Library/Android/sdk")
+        )
+
+        foreach ($path in $defaultPaths) {
+            if (Test-Path $path) {
+                $script:AndroidSdkPath = $path
+                break
+            }
+        }
+    }
+
+    if (-not $AndroidSdkPath) {
+        $script:AndroidUnavailableReason = "Android SDK not found. Set ANDROID_SDK_ROOT or AndroidSdkDirectory."
+        return $false
+    }
+
+    $javaVersion = $null
+    $javaCommand = $null
+
+    if ($env:JAVA_HOME) {
+        $javaFromHome = Join-Path $env:JAVA_HOME "bin/java.exe"
+        if (Test-Path $javaFromHome) {
+            $javaCommand = $javaFromHome
+        }
+    }
+
+    if (-not $javaCommand) {
+        $javaInfo = Get-Command java -ErrorAction SilentlyContinue
+        if ($javaInfo) {
+            $javaCommand = $javaInfo.Source
+        }
+    }
+
+    if (-not $javaCommand) {
+        $script:AndroidUnavailableReason = "Java JDK not found. Install JDK 21 and set JAVA_HOME."
+        return $false
+    }
+
+    $versionOutput = (& $javaCommand -version 2>&1 | Select-Object -First 1)
+    if ($versionOutput -match '"(?<major>\d+)') {
+        $javaVersion = [int]$Matches.major
+    }
+
+    if (-not $javaVersion) {
+        $script:AndroidUnavailableReason = "Unable to determine Java version from '$javaCommand -version'."
+        return $false
+    }
+
+    if ($javaVersion -ne 21) {
+        $script:AndroidUnavailableReason = "Unsupported JDK version $javaVersion detected. Android build requires JDK 21."
+        return $false
+    }
+
+    return $true
 }
 
 function Can-BuildApple {
@@ -91,12 +161,17 @@ function Publish-Windows {
     Write-Log "Publishing Windows ($WindowsRid) -> $OutDir"
     New-Item -Path $OutDir -ItemType Directory -Force | Out-Null
 
-    dotnet publish $AppProject `
-        -f net10.0-windows10.0.19041.0 `
-        -c $Configuration `
-        -r $WindowsRid `
-        --self-contained true `
-        -o $OutDir
+    $args = @(
+        "publish",
+        $AppProject,
+        "-f", "net10.0-windows10.0.19041.0",
+        "-c", $Configuration,
+        "-r", $WindowsRid,
+        "--self-contained", "true",
+        "-o", $OutDir
+    )
+
+    Invoke-Dotnet $args
 }
 
 function Publish-Android {
@@ -105,12 +180,21 @@ function Publish-Android {
     Write-Log "Publishing Android -> $OutDir"
     New-Item -Path $OutDir -ItemType Directory -Force | Out-Null
 
-    dotnet publish $AppProject `
-        -f net10.0-android `
-        -c $Configuration `
-        -o $OutDir `
-        /p:AndroidSigningKeyAlias="" `
-        /p:AndroidSigningStorePass=""
+    $args = @(
+        "publish",
+        $AppProject,
+        "-f", "net10.0-android",
+        "-c", $Configuration,
+        "-o", $OutDir,
+        "/p:AndroidSigningKeyAlias=",
+        "/p:AndroidSigningStorePass="
+    )
+
+    if ($AndroidSdkPath) {
+        $args += "/p:AndroidSdkDirectory=$AndroidSdkPath"
+    }
+
+    Invoke-Dotnet $args
 }
 
 function Publish-iOS {
@@ -119,14 +203,19 @@ function Publish-iOS {
     Write-Log "Building iOS simulator app -> $OutDir"
     New-Item -Path $OutDir -ItemType Directory -Force | Out-Null
 
-    dotnet build $AppProject `
-        -f net10.0-ios `
-        -c $Configuration `
-        -o $OutDir `
-        -p:EnableAppleTargets=true `
-        /p:RuntimeIdentifier=iossimulator-x64 `
-        /p:CodesignKey="" `
-        /p:CodesignProvision=""
+    $args = @(
+        "build",
+        $AppProject,
+        "-f", "net10.0-ios",
+        "-c", $Configuration,
+        "-o", $OutDir,
+        "-p:EnableAppleTargets=true",
+        "/p:RuntimeIdentifier=iossimulator-x64",
+        "/p:CodesignKey=",
+        "/p:CodesignProvision="
+    )
+
+    Invoke-Dotnet $args
 }
 
 function Publish-MacCatalyst {
@@ -135,14 +224,19 @@ function Publish-MacCatalyst {
     Write-Log "Building MacCatalyst app -> $OutDir"
     New-Item -Path $OutDir -ItemType Directory -Force | Out-Null
 
-    dotnet build $AppProject `
-        -f net10.0-maccatalyst `
-        -c $Configuration `
-        -o $OutDir `
-        -p:EnableAppleTargets=true `
-        /p:EnableCodeSigning=false `
-        /p:CodesignKey="" `
-        /p:CodesignProvision=""
+    $args = @(
+        "build",
+        $AppProject,
+        "-f", "net10.0-maccatalyst",
+        "-c", $Configuration,
+        "-o", $OutDir,
+        "-p:EnableAppleTargets=true",
+        "/p:EnableCodeSigning=false",
+        "/p:CodesignKey=",
+        "/p:CodesignProvision="
+    )
+
+    Invoke-Dotnet $args
 }
 
 $selectedPlatforms = @()
@@ -153,14 +247,14 @@ foreach ($entry in $Platform) {
 New-Item -Path $OutputRoot -ItemType Directory -Force | Out-Null
 
 Write-Log "Restoring solution"
-dotnet restore $SolutionPath
+Invoke-Dotnet @("restore", $SolutionPath)
 
 Write-Log "Building core library"
-dotnet build $CoreProject -c $Configuration --no-restore
+Invoke-Dotnet @("build", $CoreProject, "-c", $Configuration, "--no-restore")
 
 if (-not $SkipTests) {
     Write-Log "Running unit tests"
-    dotnet test $TestProject -c $Configuration --no-restore
+    Invoke-Dotnet @("test", $TestProject, "-c", $Configuration, "--no-restore")
 }
 else {
     Write-Log "Skipping unit tests"
@@ -175,7 +269,7 @@ if (Is-Requested "android" $selectedPlatforms) {
         Publish-Android (Join-Path $OutputRoot "android")
     }
     else {
-        Handle-Unavailable "android" "Android SDK not found. Set ANDROID_SDK_ROOT or install Android tooling."
+        Handle-Unavailable "android" $AndroidUnavailableReason
     }
 }
 

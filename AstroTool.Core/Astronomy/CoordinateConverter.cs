@@ -50,9 +50,17 @@ public static class CoordinateConverter
         double lat = latitudeDeg * DEG;
 
         double sinAlt = Math.Sin(dec) * Math.Sin(lat) + Math.Cos(dec) * Math.Cos(lat) * Math.Cos(H);
+        sinAlt = Math.Max(-1.0, Math.Min(1.0, sinAlt));
         double altitude = Math.Asin(sinAlt) * RAD;
 
-        double cosAz = (Math.Sin(dec) - Math.Sin(lat) * sinAlt) / (Math.Cos(lat) * Math.Cos(altitude * DEG));
+        double cosAlt = Math.Cos(altitude * DEG);
+        if (Math.Abs(cosAlt) < 1e-12)
+        {
+            // Azimuth is undefined at zenith/nadir; return canonical North.
+            return (altitude, 0.0);
+        }
+
+        double cosAz = (Math.Sin(dec) - Math.Sin(lat) * sinAlt) / (Math.Cos(lat) * cosAlt);
         // Clamp due to floating point
         cosAz = Math.Max(-1.0, Math.Min(1.0, cosAz));
         double azimuth = Math.Acos(cosAz) * RAD;
