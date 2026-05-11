@@ -91,7 +91,7 @@ The CI/CD pipeline automatically bumps the minor version after each successful m
 ### Output Artifacts
 
 Built artifacts are placed in `artifacts/` directory:
-- **Windows**: `artifacts/windows/astrotool-windows-x64.zip` (self-contained EXE)
+- **Windows**: `artifacts/windows/astrotool-windows-x64.zip` (self-contained EXE at zip root, dependencies in `deps/`)
 - **Android**: `artifacts/android/AstroTool*.apk`
 - **iOS**: `artifacts/ios/` (app bundle)
 - **macCatalyst**: `artifacts/maccatalyst/` (app bundle)
@@ -123,6 +123,9 @@ Automated builds are triggered on:
 ```bash
 # Run the executable directly
 ./artifacts/windows/AstroTool.exe
+
+# Windows dependencies are in
+./artifacts/windows/deps
 
 # Extract and verify
 unzip artifacts/windows/astrotool-windows-x64.zip -d test-windows

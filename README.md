@@ -88,6 +88,11 @@ Published app artifacts are written to:
 - `artifacts/ios`
 - `artifacts/maccatalyst`
 
+Windows artifacts are structured with the executable at the root and dependencies in a subfolder:
+
+- `artifacts/windows/AstroTool.exe`
+- `artifacts/windows/deps/` (all runtime dependencies)
+
 Each run also writes `artifacts/BUILD_SUMMARY.txt`.
 
 ### Useful Options
