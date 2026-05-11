@@ -8,6 +8,7 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
+		StartupDiagnostics.Write("MauiProgram.CreateMauiApp: start");
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
@@ -16,6 +17,7 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 			});
 
+		StartupDiagnostics.Write("MauiProgram.CreateMauiApp: adding blazor webview");
 		builder.Services.AddMauiBlazorWebView();
 
 		// Register astronomy services
@@ -28,6 +30,8 @@ public static class MauiProgram
 		builder.Logging.AddDebug();
 #endif
 
-		return builder.Build();
+		var app = builder.Build();
+		StartupDiagnostics.Write("MauiProgram.CreateMauiApp: built");
+		return app;
 	}
 }

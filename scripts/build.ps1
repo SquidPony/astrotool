@@ -168,6 +168,8 @@ function Publish-Windows {
         "-c", $Configuration,
         "-r", $WindowsRid,
         "--self-contained", "true",
+        "/p:WindowsAppSdkBootstrapInitialize=true",
+        "/p:WindowsAppSDKSelfContained=true",
         "-o", $OutDir
     )
 
