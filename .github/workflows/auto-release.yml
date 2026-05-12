@@ -204,6 +204,25 @@ jobs:
           -p:EnableWindowsTargeting=true
           --self-contained true
 
+      - name: Reorganize Windows artifact layout
+        run: |
+          publish_dir="AstroTool/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish"
+          exe_path="$publish_dir/AstroTool.exe"
+          if [ ! -f "$exe_path" ]; then
+            exe_path="$(find "$publish_dir" -maxdepth 1 -type f -name '*.exe' | head -n 1)"
+          fi
+          if [ -z "$exe_path" ]; then
+            echo "No executable found in $publish_dir" >&2
+            exit 1
+          fi
+
+          exe_name="$(basename "$exe_path")"
+          mkdir -p "$publish_dir/deps"
+          find "$publish_dir" -mindepth 1 -maxdepth 1 \
+            ! -name "$exe_name" \
+            ! -name deps \
+            -exec mv {} "$publish_dir/deps/" \;
+
       - name: Zip Windows publish output
         run: |
           cd AstroTool/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish

@@ -111,12 +111,34 @@ publish_windows() {
   local out_dir="${OUTPUT_DIR}/windows"
   log "Publishing Windows (${WINDOWS_RID}) -> ${out_dir}"
   mkdir -p "$out_dir"
+  rm -rf "${out_dir:?}"/*
+
   dotnet publish "$APP_PROJECT" \
     -f net10.0-windows10.0.19041.0 \
     -c "$CONFIGURATION" \
     -r "$WINDOWS_RID" \
     --self-contained true \
     -o "$out_dir"
+
+  local exe_path="${out_dir}/AstroTool.exe"
+  if [[ ! -f "$exe_path" ]]; then
+    exe_path="$(find "$out_dir" -maxdepth 1 -type f -name '*.exe' | head -n 1)"
+  fi
+
+  if [[ -z "$exe_path" ]]; then
+    printf "[build][error] Windows publish did not produce an executable in '%s'\n" "$out_dir" >&2
+    exit 1
+  fi
+
+  local exe_name
+  exe_name="$(basename "$exe_path")"
+  local deps_dir="${out_dir}/deps"
+  mkdir -p "$deps_dir"
+
+  find "$out_dir" -mindepth 1 -maxdepth 1 \
+    ! -name "$exe_name" \
+    ! -name deps \
+    -exec mv {} "$deps_dir/" \;
 }
 
 publish_android() {

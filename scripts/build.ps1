@@ -161,6 +161,9 @@ function Publish-Windows {
     Write-Log "Publishing Windows ($WindowsRid) -> $OutDir"
     New-Item -Path $OutDir -ItemType Directory -Force | Out-Null
 
+    # Ensure the output folder only contains files from this publish.
+    Get-ChildItem -Path $OutDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
     $args = @(
         "publish",
         $AppProject,
@@ -174,6 +177,25 @@ function Publish-Windows {
     )
 
     Invoke-Dotnet $args
+
+    $exePath = Join-Path $OutDir "AstroTool.exe"
+    if (-not (Test-Path $exePath)) {
+        $exePath = Get-ChildItem -Path $OutDir -Filter "*.exe" -File | Select-Object -First 1 -ExpandProperty FullName
+    }
+
+    if (-not $exePath) {
+        throw "Windows publish did not produce an executable in '$OutDir'."
+    }
+
+    $exeName = Split-Path $exePath -Leaf
+    $depsDir = Join-Path $OutDir "deps"
+    New-Item -Path $depsDir -ItemType Directory -Force | Out-Null
+
+    Get-ChildItem -Path $OutDir -Force |
+        Where-Object { $_.Name -ne $exeName -and $_.Name -ne "deps" } |
+        ForEach-Object {
+            Move-Item -Path $_.FullName -Destination (Join-Path $depsDir $_.Name)
+        }
 }
 
 function Publish-Android {
