@@ -78,6 +78,45 @@ function Run-Dotnet {
     & dotnet @args
 }
 
+function Run-WindowsPublishedApp {
+    $runOutputDir = Join-Path $env:TEMP ("AstroTool-run-windows-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -Path $runOutputDir -ItemType Directory -Force | Out-Null
+
+    $publishArgs = @(
+        "publish",
+        $AppProject,
+        "-f", "net10.0-windows10.0.19041.0",
+        "-c", $Configuration,
+        "-r", "win-x64",
+        "--self-contained", "true",
+        "/p:WindowsAppSdkBootstrapInitialize=true",
+        "/p:WindowsAppSDKSelfContained=true",
+        "-o", $runOutputDir
+    )
+
+    if ($NoRestore) {
+        $publishArgs += "--no-restore"
+    }
+
+    Write-Log "Publishing Windows app for launch: dotnet $($publishArgs -join ' ')"
+    & dotnet @publishArgs
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows publish failed with exit code ${LASTEXITCODE}."
+    }
+
+    $exePath = Join-Path $runOutputDir "AstroTool.exe"
+    if (-not (Test-Path $exePath)) {
+        throw "Published Windows executable not found at $exePath"
+    }
+
+    Write-Log "Launching $exePath"
+    & $exePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows app exited with code ${LASTEXITCODE}."
+    }
+}
+
 if ($Platform -eq "auto") {
     $resolved = Resolve-AutoPlatform
     if (-not $resolved) {
@@ -94,7 +133,7 @@ switch ($Platform) {
             throw "Windows runs are only supported from a Windows host."
         }
 
-        Run-Dotnet -TargetFramework "net10.0-windows10.0.19041.0"
+        Run-WindowsPublishedApp
         break
     }
     "android" {
