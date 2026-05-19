@@ -92,6 +92,21 @@ can_build_apple() {
   [[ -d "/Applications/Xcode.app/Contents/Developer" ]]
 }
 
+can_build_ios() {
+  if ! can_build_apple; then
+    return 1
+  fi
+  # iOS simulator builds require a runtime whose build version matches the installed iphonesimulator SDK.
+  # A mismatch causes actool to fail even if a runtime is present.
+  local sdk_build
+  sdk_build="$(xcrun --sdk iphonesimulator --show-sdk-build-version 2>/dev/null)"
+  [[ -n "$sdk_build" ]] && xcrun simctl list runtimes 2>/dev/null | grep -q "$sdk_build"
+}
+
+can_build_windows() {
+  [[ "$HOST_OS" == "windows_nt" || "$HOST_OS" == "mingw"* || "$HOST_OS" == "cygwin"* ]]
+}
+
 is_requested() {
   local platform="$1"
   has_value "all" "${PLATFORMS[@]}" || has_value "$platform" "${PLATFORMS[@]}"
@@ -162,6 +177,7 @@ publish_ios() {
     -c "$CONFIGURATION" \
     -o "$out_dir" \
     -p:EnableAppleTargets=true \
+    -p:EnableIosTarget=true \
     /p:RuntimeIdentifier=iossimulator-x64 \
     /p:CodesignKey="" \
     /p:CodesignProvision=""
@@ -250,7 +266,11 @@ else
 fi
 
 if is_requested "windows"; then
-  publish_windows
+  if can_build_windows; then
+    publish_windows
+  else
+    handle_unavailable "windows" "Windows cross-compilation is not supported on this host (${HOST_OS}). Build on a Windows machine."
+  fi
 fi
 
 if is_requested "android"; then
@@ -262,10 +282,10 @@ if is_requested "android"; then
 fi
 
 if is_requested "ios"; then
-  if can_build_apple; then
+  if can_build_ios; then
     publish_ios
   else
-    handle_unavailable "ios" "Requires macOS with full Xcode installation."
+    handle_unavailable "ios" "Requires macOS with Xcode and an iOS simulator runtime whose build version matches the installed SDK ($(xcrun --sdk iphonesimulator --show-sdk-build-version 2>/dev/null || echo 'unknown')). Install the matching runtime via Xcode → Platforms."
   fi
 fi
 
